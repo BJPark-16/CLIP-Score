@@ -1,0 +1,40 @@
+#Installation required libraries for Clip score on colab
+!pip install torch torchvision ftfy regex tqdm
+!pip install git+https://github.com/openai/CLIP.git
+
+#Create Function 
+import torch
+import clip
+from PIL import Image
+
+def calculate_clip_score(image_path, text, context_length=77): # Add context_length parameter
+    # Load the CLIP model
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device)
+
+    # Load and preprocess the image
+    image = preprocess(Image.open(image_path)).unsqueeze(0).to(device)
+
+    # Tokenize the text, truncating if necessary
+    # The truncate=True argument ensures that the text is truncated to the context length
+    text = clip.tokenize([text], context_length=context_length, truncate=True).to(device)  
+
+    # Calculate the image and text features
+    with torch.no_grad():
+        image_features = model.encode_image(image)
+        text_features = model.encode_text(text)
+
+    # Normalize the features
+    image_features = image_features / image_features.norm(dim=1, keepdim=True)
+    text_features = text_features / text_features.norm(dim=1, keepdim=True)
+
+    # Calculate the cosine similarity
+    similarity = (image_features @ text_features.T).item()
+
+    return similarity
+
+# Example usage_1
+image_path = "/content/drive/MyDrive/Work/AGJ/Evaulation/スクリーンショット 2024-11-13 160436.png" # the path of image
+text = "Description: Create an advertisement showing a middle-aged man using the bone-strengthening supplement in a modern pouch while practicing yoga in a traditional Japanese tatami room. Emphasize the product and the peaceful, healthy lifestyle it promotes. Details: The tatami room should have traditional Japanese elements such as sliding shoji doors, tatami mats, and a simple, elegant decor. The man should appear calm and focused, dressed in comfortable yoga attire. The supplement pouch should be placed nearby, clearly visible and well-lit. Use a color scheme that is harmonious and balanced, with natural tones and soft lighting. The overall visual style should convey peace, health, and cultural authenticity. Ensure the lighting in the tatami room is soft and natural, with shadows cast accurately to enhance the realism of the scene."
+clip_score = calculate_clip_score(image_path, text)
+print(f"CLIP Score: {clip_score}")
